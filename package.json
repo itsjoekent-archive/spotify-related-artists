@@ -1,0 +1,25 @@
+{
+  "name": "spotify-related-artists",
+  "version": "1.0.0",
+  "description": "Pull the all of the related artists for each artist in a playlist",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "DEVELOPMENT=true node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsjoekent/spotify-related-artists.git"
+  },
+  "author": "Joe Kent",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/itsjoekent/spotify-related-artists/issues"
+  },
+  "homepage": "https://github.com/itsjoekent/spotify-related-artists#readme",
+  "dependencies": {
+    "dotenv": "^6.2.0",
+    "json2csv": "^4.3.3",
+    "node-fetch": "^2.3.0"
+  }
+}
