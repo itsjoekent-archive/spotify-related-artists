@@ -19,10 +19,14 @@ const json2csv = require('json2csv').Parser;
 // table 2. - related artists originated from
 // columns = artist id, [...playlist artist id's]
 
-// table 3. - related artists genres
+// table 3. - playlist artist genres
+// columns = artist id, [...genres]
+
+// table 4. - related artists genres
 // columns = artist id, [...genres]
 
 const tables = [
+  [],
   [],
   [],
   [],
@@ -62,6 +66,20 @@ const tables = [
     ];
   }
 
+  async function getArtist(id) {
+    const uri = `https://api.spotify.com/v1/artists/${id}`;
+
+    const artistResponse = await fetch(uri, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    const artist = await artistResponse.json();
+
+    return artist;
+  }
+
   const playlistTracks = await getPlaylistTracks();
 
   const playlistArtists = playlistTracks.reduce((acc, track) => ([
@@ -71,8 +89,11 @@ const tables = [
 
   const originatedFrom = {};
 
-  const genreRelationships = {};
   const genres = [];
+  const genreRelationships = {
+    playlist: {},
+    related: {},
+  };
 
   for (const playlistArtist of playlistArtists) {
     const {
@@ -89,13 +110,27 @@ const tables = [
       name: playlistArtistName,
     });
 
+    const { genres: playlistArtistGenres = [] } = await getArtist(playlistArtistId);
+
+    for (const playlistArtistGenre of playlistArtistGenres) {
+      if (! genres.includes(playlistArtistGenre)) {
+        genres.push(playlistArtistGenre);
+      }
+
+      if (! genreRelationships.playlist[playlistArtistId]) {
+        genreRelationships.playlist[playlistArtistId] = [];
+      }
+
+      genreRelationships.playlist[playlistArtistId].push(playlistArtistGenre);
+    }
+
     const relatedArtistsResponse = await fetch(`https://api.spotify.com/v1/artists/${playlistArtistId}/related-artists`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       },
     });
 
-    const { artists: relatedArtists } = await relatedArtistsResponse.json();
+    const { artists: relatedArtists = [] } = await relatedArtistsResponse.json();
 
     for (const relatedArtist of relatedArtists) {
       const {
@@ -119,11 +154,11 @@ const tables = [
             genres.push(relatedArtistGenre);
           }
 
-          if (! genreRelationships[relatedArtistId]) {
-            genreRelationships[relatedArtistId] = [];
+          if (! genreRelationships.related[relatedArtistId]) {
+            genreRelationships.related[relatedArtistId] = [];
           }
 
-          genreRelationships[relatedArtistId].push(relatedArtistGenre);
+          genreRelationships.related[relatedArtistId].push(relatedArtistGenre);
         }
       }
 
@@ -159,19 +194,27 @@ const tables = [
     ...genres,
   ];
 
-  for (const relatedArtistId of Object.keys(genreRelationships)) {
-    const row = {
-      id: relatedArtistId,
-    };
+  const {
+    playlist: playlistGenreRelationships,
+    related: relatedArtistGenreRelationships
+  } = genreRelationships;
 
-    const relatedArtistGenres = genreRelationships[relatedArtistId];
+  function makeGenreRelationshipsTable(source, tableIndex) {
+    for (const id of Object.keys(source)) {
+      const row = { id };
 
-    for (const column of genreTableKeys.slice(1)) {
-      row[column] = !! relatedArtistGenres.includes(column);
+      const artistGenres = source[id];
+
+      for (const column of genreTableKeys.slice(1)) {
+        row[column] = !! artistGenres.includes(column);
+      }
+
+      tables[tableIndex].push(row);
     }
-
-    tables[3].push(row);
   }
+
+  makeGenreRelationshipsTable(playlistGenreRelationships, 3);
+  makeGenreRelationshipsTable(relatedArtistGenreRelationships, 4);
 
   if (DEVELOPMENT) {
     fs.writeFileSync(path.join(process.cwd(), 'table0.json'), JSON.stringify({ table: tables[0] }, null, 2));
@@ -191,4 +234,5 @@ const tables = [
   printTable(1, ['id', 'name', 'followers']);
   printTable(2, originatedFromTableKeys);
   printTable(3, genreTableKeys);
+  printTable(4, genreTableKeys);
 })();
