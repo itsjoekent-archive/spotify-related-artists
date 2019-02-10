@@ -11,7 +11,7 @@ const fetch = require('node-fetch');
 const json2csv = require('json2csv').Parser;
 
 // table 0. - playlist artists
-// columns = artist id, artist name
+// columns = artist id, artist name, total followers
 
 // table 1. - related artists
 // columns = artist id, artist name, total followers
@@ -105,12 +105,18 @@ const tables = [
       continue;
     }
 
+    const {
+      genres: playlistArtistGenres = [],
+      followers: {
+        total: playlistArtistFollowers,
+      },
+    } = await getArtist(playlistArtistId);
+
     tables[0].push({
       id: playlistArtistId,
       name: playlistArtistName,
+      followers: playlistArtistFollowers,
     });
-
-    const { genres: playlistArtistGenres = [] } = await getArtist(playlistArtistId);
 
     for (const playlistArtistGenre of playlistArtistGenres) {
       if (! genres.includes(playlistArtistGenre)) {
@@ -230,7 +236,7 @@ const tables = [
     fs.writeFileSync(path.join(process.cwd(), `table${index}.csv`), csv);
   }
 
-  printTable(0, ['id', 'name']);
+  printTable(0, ['id', 'name', 'followers']);
   printTable(1, ['id', 'name', 'followers']);
   printTable(2, originatedFromTableKeys);
   printTable(3, genreTableKeys);
